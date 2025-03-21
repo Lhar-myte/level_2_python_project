@@ -219,7 +219,28 @@ def transaction_history(user):
         for t in transactions:
             print(f"{t[0]} of {t[1]} on {t[2]}")
 
+def transfer(user):
+    recipient_account = input("Enter recipient account number: ")
+    cursor.execute("SELECT id, balance FROM customers WHERE account_number = ?", (recipient_account,))
+    recipient = cursor.fetchone()
+    if not recipient or recipient_account == user[4]:
+        print("Invalid recipient.")
+        return
+    try:
+        amount = float(input("Enter transfer amount: "))
+        if amount <= 0 or amount > user[5]:
+            print("Invalid or insufficient funds.")
+            return
+        cursor.execute("UPDATE customers SET balance = balance - ? WHERE id = ?", (amount, user[0]))
+        cursor.execute("UPDATE customers SET balance = balance + ? WHERE id = ?", (amount, recipient[0]))
+        cursor.execute("INSERT INTO transactions (user_id, transaction_type, amount, recipient_account) VALUES (?, ?, ?, ?)", (user[0], "Transfer", amount, recipient_account))
+        conn.commit()
+        print("Transfer successful.")
+    except ValueError:
+        print("Invalid input.")
 
+def account_details(user):
+    print(f"Full Name: {user[1]}, Username: {user[2]}, Account Number: {user[4]}")
 
 def main():
     cursor.execute("""
