@@ -1,4 +1,5 @@
 import re
+import sys
 import sqlite3
 import hashlib
 import random
@@ -30,7 +31,7 @@ def generate_unique_account_number():
 def validate_initial_deposit(deposit, min_balance=2000):
     """Ensure deposit is numeric and meets minimum balance."""
     try:
-        deposit = float(deposit)  # Convert input to float
+        deposit = float(deposit)  
         if deposit < 0:
             return False, "Deposit cannot be negative."
         elif deposit < min_balance:
@@ -75,16 +76,16 @@ def sign_up():
         if password != confirm_password:
             print("Passwords do not match.")
             continue
-        break  # Exit password loop after success
+        break  
     while True:
         deposit_amount = input("Enter initial deposit amount (min 2000 naira): ").strip()
         is_valid, result = validate_initial_deposit(deposit_amount)
 
         if not is_valid:
-            print(result)  # Display validation error
+            print(result)  
             continue
 
-        deposit_amount = result  # Assign valid deposit amount
+        deposit_amount = result  
         break
 
     account_number = generate_unique_account_number()
@@ -128,7 +129,7 @@ def log_in():
 def mini_menu(user):
     print("\n******************** User Dashboard ********************\n")
 
-    full_name = user[1]  # Extract full name
+    full_name = user[1]  
     print(f"Welcome, {full_name}!")
     print("Accessing account features...")
 
@@ -162,8 +163,8 @@ def mini_menu(user):
         elif choice == "6":
             account_details(user)
         elif choice == "7":
-            print("Logging out...")
-            break
+            print("Logging out... Thank you for using our service! 😊")
+            sys.exit()
         else:
             print("Invalid choice. Try again.")
         
@@ -240,7 +241,7 @@ def transfer(user):
         print("Invalid input.")
 
 def account_details(user):
-    print(f"Full Name: {user[1]}, Username: {user[2]}, Account Number: {user[4]}")
+    print(f"Full Name: {user[1]}, Username: {user[2]}, Account Number: {user[4]}") 
 
 def main():
     cursor.execute("""
