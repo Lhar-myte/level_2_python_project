@@ -56,11 +56,16 @@ def sign_up():
         break
 
     while True:
-        username = input("Enter your username: ").strip().lower()
-        if not username:
-            print("Username field should not be empty")
+        username =  input("Enter username: ").strip()
+        if len(username) < 3 or len(username) > 20 or not username.isalpha():
+            print("Invalid username. Must be between 3-20 characters and contain only alphabet.")
+            return
+        cursor.execute("SELECT id FROM customers WHERE username = ?", (username,))
+        if cursor.fetchone():
+            print("Username already taken.")
             continue
         break
+
 
     while True:
         password = getpass("Enter your password: ").strip()
@@ -192,23 +197,43 @@ def deposit(user):
 
 
 def withdraw(user):
-    pass
     try:
         amount = float(input("Enter withdrawal amount: "))
-        if amount <= 0 or amount > user[5]:
-            print("Invalid or insufficient funds.")
+        
+        if amount <= 0:
+            print("Amount must be greater than zero.")
             return
-        cursor.execute("UPDATE customers SET balance = balance - ? WHERE id = ?;", (amount, user[0]))
+        
+        cursor.execute("SELECT balance FROM customers WHERE id = ?", (user[0],))
+        result = cursor.fetchone()
+        
+        if result is None:
+            print("Error: User not found.")
+            return
+        
+        balance = result[0]  
+        
+        if amount > balance:
+            print(f"Insufficient funds. Your current balance is {balance:.2f}.")
+            return
+
+        # 
+        cursor.execute("UPDATE customers SET balance = balance - ? WHERE id = ?", (amount, user[0]))
         cursor.execute("INSERT INTO transactions (user_id, transaction_type, amount) VALUES (?, ?, ?)", (user[0], "Withdrawal", amount))
         conn.commit()
-        print("Withdrawal successful.")
-    except ValueError:
-        print("Invalid input.")   
 
+        cursor.execute("SELECT balance FROM customers WHERE id = ?", (user[0],))
+        new_balance = cursor.fetchone()[0]
+
+        print(f"Withdrawal successful! You withdrew {amount:.2f}. Your new balance is {new_balance:.2f}.")
+
+    except ValueError:
+        print("Invalid input. Please enter a valid number.")
+
+    
 
 def balance_check(user):
     updated_balance = cursor.execute("SELECT balance FROM customers WHERE id = ?", (user[0],)).fetchone()[0]
-    conn.commit()
     print(f"Your balance: {updated_balance}")
 
 def transaction_history(user):
@@ -220,25 +245,63 @@ def transaction_history(user):
         for t in transactions:
             print(f"{t[0]} of {t[1]} on {t[2]}")
 
+
 def transfer(user):
-    recipient_account = input("Enter recipient account number: ")
+    recipient_account = input("Enter recipient account number: ").strip()
+    
     cursor.execute("SELECT id, balance FROM customers WHERE account_number = ?", (recipient_account,))
     recipient = cursor.fetchone()
-    if not recipient or recipient_account == user[4]:
-        print("Invalid recipient.")
+    
+    if not recipient:
+        print("Invalid recipient account number.")
         return
+    
+    if recipient_account == user[4]:  
+        print("You cannot transfer money to yourself.")
+        return
+
     try:
-        amount = float(input("Enter transfer amount: "))
-        if amount <= 0 or amount > user[5]:
-            print("Invalid or insufficient funds.")
+        amount = input("Enter transfer amount: ").strip()
+        
+        try:
+            amount = round(float(amount), 2)
+        except ValueError:
+            print("Invalid input. Please enter a valid numeric amount.")
             return
+        
+        if amount <= 0:
+            print("Amount must be greater than zero.")
+            return
+        
+        cursor.execute("SELECT balance FROM customers WHERE id = ?", (user[0],))
+        sender_balance = cursor.fetchone()
+        
+        if sender_balance is None:
+            print("Error: User not found.")
+            return
+        
+        sender_balance = sender_balance[0]  
+
+        if amount > sender_balance:
+            print(f"Insufficient funds. Your current balance is {sender_balance:.2f}.")
+            return
+
         cursor.execute("UPDATE customers SET balance = balance - ? WHERE id = ?", (amount, user[0]))
         cursor.execute("UPDATE customers SET balance = balance + ? WHERE id = ?", (amount, recipient[0]))
+
         cursor.execute("INSERT INTO transactions (user_id, transaction_type, amount, recipient_account) VALUES (?, ?, ?, ?)", (user[0], "Transfer", amount, recipient_account))
+        
         conn.commit()
-        print("Transfer successful.")
-    except ValueError:
-        print("Invalid input.")
+
+        cursor.execute("SELECT balance FROM customers WHERE id = ?", (user[0],))
+        new_sender_balance = cursor.fetchone()[0]
+
+        print(f"Transfer successful! You sent {amount:.2f} to account {recipient_account}. Your new balance is {new_sender_balance:.2f}.")
+
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
 
 def account_details(user):
     print(f"Full Name: {user[1]}, Username: {user[2]}, Account Number: {user[4]}") 
@@ -252,6 +315,7 @@ def main():
         password TEXT NOT NULL,
         account_number TEXT UNIQUE NOT NULL,
         balance REAL DEFAULT 0
+        
     )
     """)
 
@@ -280,7 +344,6 @@ def main():
             print("Invalid choice, please try again.")
 
 
-conn.commit()
 
 if __name__ == "__main__":
     try:
@@ -288,3 +351,4 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"An error occurred: {e}")
         conn.close()
+
